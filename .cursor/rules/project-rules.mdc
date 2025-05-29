@@ -1,0 +1,77 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Cursor Rules for Ultimate Contact Context Aggregator
+
+## General Guidelines
+- **Always use Pinecone as the vector database** for all vector storage and similarity search operations.
+- **Modularity**: Structure code in separate files for authentication, data sources, vectorization, storage, and visualization.
+- **Type Hints**: Use Python type hints for all functions and methods.
+- **Docstrings**: Include docstrings for all classes and functions.
+- **Error Handling**: Use try-except blocks for API, file I/O, and database errors.
+- **Logging**: Use the `logging` module for debug, info, and error logs.
+- **Testing**: Generate `pytest` unit tests for each module, mocking external dependencies (Google APIs, Pinecone).
+
+## Module-Specific Rules
+
+### 1. Authentication (src/auth/)
+- Implement an abstract `BaseAuth` class with a `get_credentials` method.
+- Implement `GoogleAuth` for OAuth 2.0, supporting token persistence and refresh.
+- Support multiple scopes from `config.yaml`.
+- Store tokens securely in `data/token.json`.
+
+### 2. Data Ingestion (src/data_sources/)
+- Implement an abstract `BaseDataSource` class with an async `fetch_data` method.
+- Implement `GmailSource` and `CalendarSource` for Google APIs.
+- Normalize contact IDs (e.g., lowercase emails).
+- Use async I/O for API calls.
+
+### 3. Vectorization (src/vectorization/)
+- Implement a `FeatureExtractor` for numerical and text features.
+- Use `sentence-transformers` for text embeddings.
+- Implement a `Vectorizer` to combine features into vectors.
+- Support configurable feature weights from `config.yaml`.
+
+### 4. Vector Storage (src/storage/)
+- **Always use Pinecone for vector storage and similarity search.**
+- Implement a `PineconeStorage` class for all vector DB operations.
+- Insert vectors with contact IDs and metadata.
+- Support top-k nearest neighbor queries.
+- Handle connection errors and index initialization.
+
+### 5. Visualization (src/visualization/)
+- Implement a `StreamlitViz` class for interactive visualization.
+- Use Plotly for 2D scatter plots and clustering.
+- Support similarity search via Pinecone.
+
+### 6. Pipeline Orchestration (src/pipeline.py)
+- Orchestrate authentication, data ingestion, vectorization, and storage.
+- Load config from `config.yaml`.
+- Support async data fetching and dynamic source loading.
+
+### 7. Configuration (config/config.yaml)
+- Store all API keys, feature weights, and Pinecone settings in YAML.
+- Validate required fields and provide sensible defaults.
+
+### 8. Extensibility
+- To add a new data source, implement a new class inheriting from `BaseDataSource` and update config.
+- To add a new auth method, implement a new class inheriting from `BaseAuth`.
+
+## Pinecone-Specific Rules
+- Do not use Milvus or any other vector DB for storage or search.
+- All vector operations (insert, query, delete) must use Pinecone.
+- Use the Pinecone Python client and follow best practices for index management.
+
+## Testing
+- Mock Pinecone and Google APIs in all tests.
+- Aim for 80%+ code coverage.
+
+## Refactoring and Debugging
+- Refactor for readability and modularity after initial implementation.
+- Use logging and error handling for all external operations.
+
+---
+
+**These rules are to be followed for all future development in this project.** 
