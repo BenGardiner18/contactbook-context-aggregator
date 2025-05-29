@@ -2,16 +2,17 @@ import os
 import logging
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-from pinecone_storage import PineconeStorage
+from src.storage.pinecone_storage import PineconeStorage
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 import json
+from src.vectorization.vectorization import FeatureExtractor, Vectorizer
 
 logging.basicConfig(level=logging.INFO)
 
 def get_google_credentials(scopes: List[str]) -> Any:
     """
-    Authenticate with Google using client secrets from environment variables.
+    Authenticate with Google using client secrets from environment variables, without writing a file.
     """
     client_config = {
         "installed": {
@@ -23,9 +24,7 @@ def get_google_credentials(scopes: List[str]) -> Any:
             "redirect_uris": ["http://localhost:8080"]
         }
     }
-    with open("client_secrets.json", "w") as f:
-        json.dump(client_config, f)
-    flow = InstalledAppFlow.from_client_secrets_file("client_secrets.json", scopes)
+    flow = InstalledAppFlow.from_client_config(client_config, scopes)
     creds = flow.run_local_server(port=8080)
     return creds
 
@@ -47,13 +46,8 @@ def fetch_gmail_messages(service, max_results: int = 100) -> List[Dict[str, Any]
             "snippet": snippet,
             "metadata": {"category": "inbox"}
         })
+        print(all_msgs)
     return all_msgs
-
-def mock_vectorize(texts: List[str]) -> List[List[float]]:
-    """
-    Mock function to vectorize text. Replace with real embedding model later.
-    """
-    return [[float(i)] * 1536 for i in range(len(texts))]
 
 def main():
     load_dotenv()
@@ -88,11 +82,13 @@ def main():
         return
 
     ids = [email["id"] for email in emails]
-    texts = [email["subject"] + " " + email["snippet"] for email in emails]
+    extractor = FeatureExtractor()
+    texts = [extractor.extract_text(email) for email in emails]
     metadata = [email["metadata"] for email in emails]
 
-    # Vectorize emails (mocked)
-    vectors = mock_vectorize(texts)
+    # Vectorize emails using the new Vectorizer
+    vectorizer = Vectorizer()
+    vectors = vectorizer.vectorize(texts)
 
     # Insert into Pinecone
     try:

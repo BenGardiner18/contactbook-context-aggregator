@@ -26,18 +26,22 @@ A modular Python system to aggregate contact data from multiple sources (startin
    ```
 
 ## Directory Structure
-- `src/` - Source code (auth, data_sources, vectorization, storage, visualization)
+- `src/auth/` - Authentication base and implementations
+- `src/data_sources/` - Data ingestion modules (Gmail, Calendar, etc.)
+- `src/vectorization/` - Feature extraction and vectorization
+- `src/storage/` - Pinecone storage and vector DB logic
+- `src/visualization/` - Streamlit and visualization code
 - `config/` - Configuration files
 - `data/` - Credentials and tokens (not versioned)
 - `tests/` - Unit and integration tests
 - `main.py` - CLI entry point
-- `app.py` - Streamlit app entry point
+- `api_server.py` - FastAPI server for Pinecone and other backend APIs
 
-## Modular Structure (Planned)
+## Modular Structure
 
-- `vector_base.py`: Abstract base class for vector DB operations.
-- `pinecone_storage.py`: Pinecone implementation of vector DB.
-- `auth_base.py`: Abstract base class for authentication.
+- `src/storage/vector_base.py`: Abstract base class for vector DB operations.
+- `src/storage/pinecone_storage.py`: Pinecone implementation of vector DB.
+- `src/auth/auth_base.py`: Abstract base class for authentication.
 - `main.py`: Pipeline orchestrator for authentication, data loading, and Pinecone storage.
 
 All new code will follow project modularity and type hinting rules. 

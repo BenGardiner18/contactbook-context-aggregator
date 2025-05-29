@@ -1,20 +1,19 @@
 import logging
 from typing import List, Dict, Any
-from pinecone import Pinecone, PineconeException
+from pinecone import Pinecone, ServerlessSpec
 from vector_base import BaseVectorDB
 
 class PineconeStorage(BaseVectorDB):
     """
     Pinecone implementation of the BaseVectorDB for vector storage and similarity search.
     """
-    def __init__(self, api_key: str, index_name: str):
+    def __init__(self, api_key: str, index_name: str, environment: str = "us-west1-gcp"):
         self.api_key = api_key
         self.index_name = index_name
         try:
-            self.pc = Pinecone(api_key=api_key)
-            self.index = self.pc.Index(index_name)
+            self.index = Pinecone(api_key=api_key, environment=environment).Index(index_name)
             logging.info(f"Connected to Pinecone index: {index_name}")
-        except PineconeException as e:
+        except Exception as e:
             logging.error(f"Failed to initialize Pinecone: {e}")
             raise
 
@@ -26,7 +25,7 @@ class PineconeStorage(BaseVectorDB):
             items = [(id_, vec, meta) for id_, vec, meta in zip(ids, vectors, metadata)]
             self.index.upsert(vectors=items, namespace=namespace)
             logging.info(f"Inserted {len(vectors)} vectors into namespace '{namespace}'")
-        except PineconeException as e:
+        except Exception as e:
             logging.error(f"Error inserting vectors: {e}")
             raise
 
@@ -35,12 +34,19 @@ class PineconeStorage(BaseVectorDB):
         Query Pinecone for top_k most similar vectors.
         """
         try:
-            response = self.index.query(vector=vector, top_k=top_k, include_values=True, include_metadata=True, namespace=namespace)
+            response = self.index.query(
+                vector=vector,
+                top_k=top_k,
+                include_values=True,
+                include_metadata=True,
+                namespace=namespace,
+                metric="cosine"  # Explicitly specify metric
+            )
             return [
                 {"id": match["id"], "values": match["values"], "metadata": match.get("metadata", {})}
                 for match in response["matches"]
             ]
-        except PineconeException as e:
+        except Exception as e:
             logging.error(f"Error querying vectors: {e}")
             raise
 
@@ -50,11 +56,18 @@ class PineconeStorage(BaseVectorDB):
         """
         try:
             dummy_vector = [0.0] * 1536  # For ada-002
-            response = self.index.query(vector=dummy_vector, top_k=limit, include_values=True, include_metadata=True, namespace=namespace)
+            response = self.index.query(
+                vector=dummy_vector,
+                top_k=limit,
+                include_values=True,
+                include_metadata=True,
+                namespace=namespace,
+                metric="cosine"  # Explicitly specify metric
+            )
             return [
                 {"id": match["id"], "values": match["values"], "metadata": match.get("metadata", {})}
                 for match in response["matches"]
             ]
-        except PineconeException as e:
+        except Exception as e:
             logging.error(f"Error fetching records: {e}")
-            raise 
+            raise
