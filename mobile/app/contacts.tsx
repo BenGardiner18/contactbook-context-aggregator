@@ -1,63 +1,79 @@
-import React, { useState } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal, SafeAreaView, ScrollView } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal, SafeAreaView, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Link } from 'expo-router'
-
-// Utility to generate fake contacts
-const AVATARS = [
-  'https://randomuser.me/api/portraits/men/32.jpg',
-  'https://randomuser.me/api/portraits/women/44.jpg',
-  'https://randomuser.me/api/portraits/men/65.jpg',
-  'https://randomuser.me/api/portraits/women/12.jpg',
-  'https://randomuser.me/api/portraits/men/23.jpg',
-  'https://randomuser.me/api/portraits/women/56.jpg',
-]
-
-function getRandomInt(max: number) {
-  return Math.floor(Math.random() * max)
-}
-
-function generateFakeContacts(count: number) {
-  const firstNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Hank', 'Ivy', 'Jack']
-  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Martinez', 'Lee']
-  const contacts = []
-  for (let i = 0; i < count; i++) {
-    const first = firstNames[getRandomInt(firstNames.length)]
-    const last = lastNames[getRandomInt(lastNames.length)]
-    const name = `${first} ${last}`
-    const email = `${first.toLowerCase()}.${last.toLowerCase()}${i}@example.com`
-    const phone = `+1-555-${getRandomInt(900) + 100}-${getRandomInt(9000) + 1000}`
-    const avatar = AVATARS[getRandomInt(AVATARS.length)]
-    const company = ['Acme Inc', 'Globex', 'Initech', 'Umbrella', 'Wayne Enterprises'][getRandomInt(5)]
-    const job = ['Engineer', 'Designer', 'Manager', 'Analyst', 'Consultant'][getRandomInt(5)]
-    contacts.push({
-      id: `${i}`,
-      name,
-      email,
-      phone,
-      avatar,
-      company,
-      job,
-      address: `${getRandomInt(999)} Main St, City, State`,
-      notes: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.'
-    })
-  }
-  return contacts
-}
-
-const CONTACTS = generateFakeContacts(20)
+import { useBackendApi, Contact } from '../services/backendApi'
 
 export default function ContactsPage() {
-  const [selected, setSelected] = useState<any | null>(null)
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<Contact | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
+  
+  const { fetchGoogleContacts, getCachedContacts, healthCheck } = useBackendApi()
 
-  const openDetails = (contact: any) => {
+  useEffect(() => {
+    loadContacts()
+  }, [])
+
+  const loadContacts = async () => {
+    try {
+      setLoading(true)
+      
+      // First check if backend is available
+      const isHealthy = await healthCheck()
+      if (!isHealthy) {
+        Alert.alert('Backend Unavailable', 'Please make sure the backend server is running on localhost:8000')
+        return
+      }
+
+      // Try to get cached contacts first
+      let contactsData = await getCachedContacts()
+      
+      // If no cached contacts, fetch from Google
+      if (contactsData.length === 0) {
+        try {
+          contactsData = await fetchGoogleContacts()
+        } catch (error: any) {
+          if (error.message.includes('Google account not linked')) {
+            Alert.alert(
+              'Google Account Required', 
+              'Please link your Google account in Clerk to access your contacts.',
+              [{ text: 'OK' }]
+            )
+          } else {
+            Alert.alert('Error', `Failed to fetch contacts: ${error.message}`)
+          }
+          return
+        }
+      }
+      
+      setContacts(contactsData)
+    } catch (error: any) {
+      console.error('Error loading contacts:', error)
+      Alert.alert('Error', `Failed to load contacts: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openDetails = (contact: Contact) => {
     setSelected(contact)
     setModalVisible(true)
   }
+  
   const closeDetails = () => {
     setModalVisible(false)
     setSelected(null)
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#6366f1" />
+        <Text style={{ marginTop: 16, color: '#fff', fontSize: 16 }}>Loading contacts...</Text>
+      </SafeAreaView>
+    )
   }
 
   return (
@@ -69,9 +85,12 @@ export default function ContactsPage() {
             </TouchableOpacity>
           </Link>
           <Text style={styles.title}>Contacts</Text>
+          <TouchableOpacity style={styles.refreshButton} onPress={loadContacts}>
+            <Ionicons name="refresh" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
         <FlatList
-          data={CONTACTS}
+          data={contacts}
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           renderItem={({ item }) => (
@@ -133,6 +152,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
+    flex: 1,
+  },
+  refreshButton: {
+    padding: 4,
   },
   card: {
     flexDirection: 'row',
