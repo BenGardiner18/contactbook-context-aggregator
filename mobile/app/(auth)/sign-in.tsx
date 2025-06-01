@@ -1,4 +1,4 @@
-import { useSignIn } from '@clerk/clerk-expo'
+import { useSignIn, useOAuth } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
 import { 
   Text, 
@@ -10,14 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert
+  Alert,
+  ScrollView
 } from 'react-native'
 import React from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn()
   const router = useRouter()
+  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
 
   const [emailAddress, setEmailAddress] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -35,27 +38,20 @@ export default function Page() {
 
     setIsLoading(true)
 
-    // Start the sign-in process using the email and password provided
     try {
       const signInAttempt = await signIn.create({
         identifier: emailAddress,
         password,
       })
 
-      // If sign-in process is complete, set the created session as active
-      // and redirect the user
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId })
         router.replace('/')
       } else {
-        // If the status isn't complete, check why. User might need to
-        // complete further steps.
         console.error(JSON.stringify(signInAttempt, null, 2))
         Alert.alert('Sign In Error', 'Unable to complete sign in. Please try again.')
       }
     } catch (err: any) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
       console.error(JSON.stringify(err, null, 2))
       const errorMessage = err.errors?.[0]?.message || 'Invalid email or password'
       Alert.alert('Sign In Error', errorMessage)
@@ -64,13 +60,33 @@ export default function Page() {
     }
   }
 
-  return (
+  const onGooglePress = async () => {
+    try {
+      const { createdSessionId, setActive: oauthSetActive } = await startOAuthFlow();
+      
+      if (createdSessionId && oauthSetActive) {
+        await oauthSetActive({ session: createdSessionId });
+        router.replace('/');
+      } else {
+        Alert.alert('Google Sign In', 'Please complete the authentication process.');
+      }
+    } catch (err: any) {
+      console.error('Google OAuth Error:', err);
+      Alert.alert('Google Sign In Error', 'Unable to sign in with Google. Please try again.');
+    }
+  };
 
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
+  return (
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        style={StyleSheet.absoluteFill}
+      />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.content}>
             {/* Back Button */}
             <TouchableOpacity 
@@ -136,7 +152,7 @@ export default function Page() {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#6366f1" />
+                  <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.signInButtonText}>Sign In</Text>
                 )}
@@ -150,7 +166,7 @@ export default function Page() {
               </View>
 
               {/* Social Sign In */}
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity style={styles.socialButton} onPress={onGooglePress}>
                 <Ionicons name="logo-google" size={20} color="#1f2937" />
                 <Text style={styles.socialButtonText}>Continue with Google</Text>
               </TouchableOpacity>
@@ -166,8 +182,9 @@ export default function Page() {
               </View>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   )
 }
 
@@ -175,11 +192,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  safeArea: {
-    flex: 1,
-  },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,
@@ -187,14 +204,16 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: Platform.OS === 'ios' ? 60 : 40,
     left: 20,
     zIndex: 1,
     padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   header: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: Platform.OS === 'ios' ? 120 : 100,
     marginBottom: 40,
   },
   title: {
@@ -203,29 +222,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 20,
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: '#e9d5ff',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   form: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f8fafc',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     height: 56,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   inputIcon: {
     marginRight: 12,
@@ -281,6 +308,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     color: '#6b7280',
     fontSize: 14,
+    fontWeight: '500',
   },
   socialButton: {
     flexDirection: 'row',
@@ -292,6 +320,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   socialButtonText: {
     fontSize: 16,

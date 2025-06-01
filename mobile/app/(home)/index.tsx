@@ -44,6 +44,13 @@ export default function Page() {
                 <Text style={styles.buttonText}>View Contacts</Text>
               </TouchableOpacity>
             </Link>
+
+            <Link href="/settings" asChild>
+              <TouchableOpacity style={styles.primaryButton}>
+                <Ionicons name="settings" size={24} color="#fff" />
+                <Text style={styles.buttonText}>Settings</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
 
           <SignOutButton />
