@@ -1,4 +1,5 @@
 import { useUser, useAuth } from '@clerk/clerk-expo';
+import { getClerkInstance } from '@clerk/clerk-expo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
@@ -173,10 +174,38 @@ export class GoogleContactsService {
 }
 
 /**
+ * Utility function to get Google access token outside of React components
+ * Uses the Clerk instance directly
+ */
+export const getGoogleAccessToken = async (): Promise<string | null> => {
+  try {
+    const clerkInstance = getClerkInstance();
+    
+    if (!clerkInstance.session) {
+      throw new Error('No active Clerk session found');
+    }
+
+    // Try to get Google OAuth access token
+    const accessToken = await clerkInstance.session.getToken({ template: 'google_oauth' });
+    
+    if (!accessToken) {
+      console.warn('Google access token not available from Clerk session');
+      return null;
+    }
+
+    return accessToken;
+  } catch (error) {
+    console.error('Error getting Google access token:', error);
+    return null;
+  }
+};
+
+/**
  * React hook for fetching Google Contacts
  */
 export const useGoogleContacts = () => {
   const { user } = useUser();
+  const { getToken } = useAuth();
 
   const fetchContacts = async (): Promise<GoogleContact[]> => {
     try {
@@ -189,15 +218,18 @@ export const useGoogleContacts = () => {
         throw new Error('Google account not linked. Please link your Google account in Settings.');
       }
 
-      // For production, you would need to implement proper token management
-      // This is a simplified example that assumes you have access to the token
-      
-      // Option 1: Try to get token from external account (may not be available in Clerk)
-      const accessToken = (googleAccount as any)?.accessToken;
+      console.log('Attempting to get Google access token from Clerk...');
+
+      // Get Google access token from Clerk session
+      // This is the correct way to get OAuth tokens from Clerk
+      const accessToken = await getToken({ template: 'google_oauth' });
       
       if (!accessToken) {
+        console.error('Failed to get Google access token from Clerk');
         throw new Error('Google access token not available. You may need to re-authenticate with Google.');
       }
+
+      console.log('Successfully obtained Google access token from Clerk');
 
       const service = new GoogleContactsService();
       return await service.getContactsWithCache(accessToken);
@@ -215,6 +247,8 @@ export const useGoogleContacts = () => {
   return { 
     fetchContacts, 
     getCachedContacts,
-    isGoogleLinked: !!user?.externalAccounts?.find(account => account.provider === 'google')
+    isGoogleLinked: !!user?.externalAccounts?.find(account => account.provider === 'google'),
+    // Add utility function for debugging
+    getGoogleToken: () => getToken({ template: 'google_oauth' })
   };
 }; 

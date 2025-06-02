@@ -1,4 +1,5 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import List
 import os
 
@@ -9,13 +10,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # Clerk Configuration
-    CLERK_PUBLISHABLE_KEY: str
-    CLERK_SECRET_KEY: str
+    CLERK_PUBLISHABLE_KEY: str = ""
+    CLERK_SECRET_KEY: str = ""
     
     # Google OAuth Configuration
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
-    GOOGLE_PROJECT_ID: str
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_PROJECT_ID: str = ""
     
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"
@@ -41,9 +42,11 @@ class Settings(BaseSettings):
     # Cache Configuration
     CACHE_TTL: int = 3600  # 1 hour in seconds
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 # Create global settings instance
 settings = Settings() 

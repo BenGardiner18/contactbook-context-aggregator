@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Modal, SafeA
 import { Ionicons } from '@expo/vector-icons'
 import { Link } from 'expo-router'
 import { useBackendApi, Contact } from '../services/backendApi'
+import { useGoogleContacts, getGoogleAccessToken } from '../services/googleContacts'
 
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -11,10 +12,38 @@ export default function ContactsPage() {
   const [modalVisible, setModalVisible] = useState(false)
   
   const { fetchGoogleContacts, getCachedContacts, healthCheck } = useBackendApi()
+  const { getGoogleToken } = useGoogleContacts()
 
   useEffect(() => {
     loadContacts()
   }, [])
+
+  // Test function to debug Google token extraction
+  const testGoogleToken = async () => {
+    try {
+      console.log('=== Testing Google Token Extraction ===')
+      
+      // Test with React hook
+      const tokenFromHook = await getGoogleToken()
+      console.log('Token from hook:', tokenFromHook ? 'SUCCESS' : 'FAILED')
+      
+      // Test with utility function
+      const tokenFromUtil = await getGoogleAccessToken()
+      console.log('Token from utility:', tokenFromUtil ? 'SUCCESS' : 'FAILED')
+      
+      if (tokenFromHook || tokenFromUtil) {
+        Alert.alert(
+          'Token Test Success!', 
+          `Hook: ${tokenFromHook ? '✅' : '❌'}\nUtility: ${tokenFromUtil ? '✅' : '❌'}`
+        )
+      } else {
+        Alert.alert('Token Test Failed', 'Could not retrieve Google access token from Clerk')
+      }
+    } catch (error: any) {
+      console.error('Token test error:', error)
+      Alert.alert('Token Test Error', error.message)
+    }
+  }
 
   const loadContacts = async () => {
     try {
@@ -85,9 +114,14 @@ export default function ContactsPage() {
             </TouchableOpacity>
           </Link>
           <Text style={styles.title}>Contacts</Text>
-          <TouchableOpacity style={styles.refreshButton} onPress={loadContacts}>
-            <Ionicons name="refresh" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.testButton} onPress={testGoogleToken}>
+              <Ionicons name="flask" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.refreshButton} onPress={loadContacts}>
+              <Ionicons name="refresh" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <FlatList
           data={contacts}
@@ -153,6 +187,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     flex: 1,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  testButton: {
+    padding: 4,
+    marginRight: 8,
   },
   refreshButton: {
     padding: 4,
